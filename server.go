@@ -145,9 +145,15 @@ func gitHttpBackend(w http.ResponseWriter, r *http.Request) {
 func isPostReceive() bool {
     return strings.HasSuffix(os.Args[0], "post-receive")
 }
+
 func handlePostReceive() {
-    // TODO
-    fmt.Println("handling post-receive")
+    pwd, _ := os.Getwd()
+    repo := RepoFromPath(pwd)
+    if repo != nil {
+        repo.TriggerWebhook()
+    } else {
+        fmt.Printf("Failed to find the repo: %s", pwd)
+    }
 }
 
 func main() {

@@ -1,7 +1,10 @@
 package main
 
 import (
+    "bytes"
+    "encoding/json"
     "errors"
+    "io"
     "net/http"
     "path/filepath"
     "fmt"
@@ -24,7 +27,6 @@ func init() {
     if err != nil {
         log.Fatalf("Unable to resolve GITTO_ROOT: %s", err)
     }
-    log.Println("Initialzed GIT_ROOT to", GIT_ROOT)
 }
 
 // The repo will be at {Root}/{Id}/{Name}.git
@@ -57,7 +59,6 @@ func GetRepo(id string) *GitRepo {
     path := filepath.Join(GIT_ROOT, id)
 
     info, err := os.Stat(path)
-
     if err != nil || !info.IsDir() {
         return nil
     }
@@ -72,6 +73,24 @@ func GetRepo(id string) *GitRepo {
 
     return &GitRepo{
         Root: GIT_ROOT,
+        Id: id,
+        Name: name,
+    }
+}
+
+func RepoFromPath(path string) *GitRepo {
+    // TODO: don't ignore errors
+    if !strings.HasSuffix(path, ".git") {
+        return nil
+    }
+    parent := filepath.Dir(path)
+    root := filepath.Dir(parent)
+
+    id := filepath.Base(parent)
+    name := strings.Replace(filepath.Base(path), ".git", "", -1)
+
+    return &GitRepo{
+        Root: root,
         Id: id,
         Name: name,
     }
@@ -107,6 +126,19 @@ func NewRepo(name string) (GitRepo, error) {
 
     log.Println("Created new repo at", repo.GetPath())
     return repo, nil
+}
+
+func (repo *GitRepo) GetCommitHash() string {
+    path := repo.GetPath()
+    cmd := exec.Command(
+            "git", "-C", path,
+            "rev-parse", "HEAD")
+    out, err := cmd.Output()
+    if err != nil {
+        log.Printf("%s: failed to get commit hash (%s)\n", repo.Id, err)
+        return ""
+    }
+    return strings.TrimSpace(string(out))
 }
 
 // initializes the repo by invoking git init
@@ -158,4 +190,27 @@ func (repo *GitRepo) GetWebhookURL() string {
 func (repo *GitRepo) SetWebhookURL(url string) error {
     path := filepath.Join(repo.GetPath(), "hooks", "webhook.txt")
     return os.WriteFile(path, []byte(url), 0755)
+}
+
+func (repo *GitRepo) TriggerWebhook() {
+    // fmt.Println("Triggering webhook", repo.GetWebhookURL())
+
+    url := repo.GetWebhookURL()
+    if url == "" {
+        return
+    }
+
+    values := map[string]string{
+        "repo_id": repo.Id,
+        "repo_name": repo.Name,
+        "git_commit_hash": repo.GetCommitHash(),
+    }
+    json_data, _ := json.Marshal(values)
+
+    resp, err := http.Post(url, "application/json", bytes.NewBuffer(json_data))
+
+    if err != nil {
+        log.Fatal(err)
+    }
+    io.Copy(os.Stdout, resp.Body)
 }

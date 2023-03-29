@@ -8,6 +8,7 @@ import (
     "net/http/cgi"
     "net/http"
     "fmt"
+    "regexp"
     "log"
     "strings"
     "os"
@@ -17,12 +18,35 @@ type NewRepoRequest struct {
     Name string `json:"name"`
 }
 
+type Webhook struct {
+    URL string `json:"url"`
+}
+
 func Serve() {
-    http.HandleFunc("/api/repos", apiCreateRepo)
+    http.HandleFunc("/api/", handleAPI)
     http.HandleFunc("/", gitHttpBackend)
 
     fmt.Println("http://localhost:8080/")
     http.ListenAndServe(":8080", nil)
+}
+
+var REGEX_HOOK = regexp.MustCompile("^/api/repos/([0-9a-f]+)/hook$")
+
+func handleAPI(w http.ResponseWriter, r *http.Request) {
+    path := r.URL.Path
+
+    if path == "/api/repos" {
+        apiCreateRepo(w, r)
+        return
+    }
+
+    matches := REGEX_HOOK.FindStringSubmatch(path)
+    if matches != nil {
+        apiRepoHook(w, r, matches[1])
+        return
+    }
+
+    w.WriteHeader(404)
 }
 
 func apiCreateRepo(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +72,40 @@ func apiCreateRepo(w http.ResponseWriter, r *http.Request) {
 
     body, _ := json.Marshal(repo)
     w.Write(body)
+}
+
+func apiRepoHook(w http.ResponseWriter, r *http.Request, repo_id string) {
+    repo := GetRepo(repo_id)
+
+    if repo == nil {
+        w.WriteHeader(404)
+        return
+    }
+
+    if r.Method == "GET" {
+        hook := Webhook{
+            URL: repo.GetWebhookURL(),
+        }
+        w.Header().Set("Content-type", "application/json")
+        body, _ := json.Marshal(hook)
+        w.Write(body)
+        return
+    } else if r.Method == "POST" {
+        var hook Webhook
+
+        err := json.NewDecoder(r.Body).Decode(&hook)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusBadRequest)
+            return
+        }
+
+        repo.SetWebhookURL(hook.URL)
+
+        w.Header().Set("Content-type", "application/json")
+        body, _ := json.Marshal(hook)
+        w.Write(body)
+        return
+    }
 }
 
 func gitHttpBackend(w http.ResponseWriter, r *http.Request) {

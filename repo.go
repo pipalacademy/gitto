@@ -51,7 +51,30 @@ func (repo *GitRepo) InitGitURL(r *http.Request) {
     }
 
     repo.GitURL = fmt.Sprintf("%s://%s/%s/%s.git", scheme, host, repo.Id, repo.Name)
-    log.Println("InitGitURL", repo.GitURL)
+}
+
+func GetRepo(id string) *GitRepo {
+    path := filepath.Join(GIT_ROOT, id)
+
+    info, err := os.Stat(path)
+
+    if err != nil || !info.IsDir() {
+        return nil
+    }
+
+    matches, _ := filepath.Glob(path + "/*.git")
+    if len(matches) == 0 {
+        return nil
+    }
+
+    name := filepath.Base(matches[0])
+    name = strings.Split(name, ".")[0]
+
+    return &GitRepo{
+        Root: GIT_ROOT,
+        Id: id,
+        Name: name,
+    }
 }
 
 func NewRepo(name string) (GitRepo, error) {
@@ -76,7 +99,7 @@ func NewRepo(name string) (GitRepo, error) {
         return GitRepo{}, errors.New(msg)
     }
 
-    err = repo.installHook()
+    err = repo.installPostReceive()
     if err != nil {
         msg := fmt.Sprintf("Failed to create repository (%s)", err)
         return GitRepo{}, errors.New(msg)
@@ -103,7 +126,7 @@ func (repo *GitRepo) initRepo() error {
 }
 
 // install post-receive hook
-func (repo *GitRepo) installHook() error {
+func (repo *GitRepo) installPostReceive() error {
     hook_path := filepath.Join(repo.GetPath(), "hooks", "post-receive")
     gitto_path, err := filepath.Abs(os.Args[0])
     if err != nil {
@@ -117,4 +140,22 @@ func (repo *GitRepo) installHook() error {
         return err
     }
     return nil
+}
+
+// Returns the Webhook URL if exists, or empty string
+func (repo *GitRepo) GetWebhookURL() string {
+    path := filepath.Join(repo.GetPath(), "hooks", "webhook.txt")
+
+    content, err := os.ReadFile(path)
+    if err != nil {
+        return ""
+    }
+    url := string(content)
+    return strings.TrimSpace(url)
+}
+
+// Returns the Webhook URL if exists, or empty string
+func (repo *GitRepo) SetWebhookURL(url string) error {
+    path := filepath.Join(repo.GetPath(), "hooks", "webhook.txt")
+    return os.WriteFile(path, []byte(url), 0755)
 }

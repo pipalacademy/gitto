@@ -47,15 +47,19 @@ POST /api/repos
     "name": "rajdhani"
 }
 ---
-201 Created
-
-Location: /api/repos/abcd12345678
+200 OK
+{
+    "id": "abcd12345678",
+    "name": "rajdhani",
+    "repo_name": "abcd12345678/rajdhani",
+    "git_url": "https://example.com/abcd12345678/rajdhani.git",
+}
 ```
 
 ### Get repo info
 
 ```
-GET /apis/repos/abcd12345678
+GET /api/repos/abcd12345678
 
 {
     "id": "abcd12345678",
@@ -68,7 +72,7 @@ GET /apis/repos/abcd12345678
 ### Delete a repo
 
 ```
-DELETE /apis/repos/abcd12345678
+DELETE /api/repos/abcd12345678
 ---
 200 OK
 {}
@@ -77,7 +81,7 @@ DELETE /apis/repos/abcd12345678
 ### Get webhook
 
 ```
-GET /apis/repos/abcd12345678/hook
+GET /api/repos/abcd12345678/hook
 
 {"url": "https://example.com/foo"}
 ```
@@ -85,7 +89,7 @@ GET /apis/repos/abcd12345678/hook
 ### Set webhook
 
 ```
-POST /apis/repos/abcd12345678/hook
+POST /api/repos/abcd12345678/hook
 
 {"url": "https://example.com/foo"}
 ```

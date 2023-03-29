@@ -16,20 +16,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var GIT_ROOT string = "git"
-
-func init() {
-	root, ok := os.LookupEnv("GITTO_ROOT")
-	if ok {
-		GIT_ROOT = root
-	}
-	var err error
-	GIT_ROOT, err = filepath.Abs(GIT_ROOT)
-	if err != nil {
-		log.Fatalf("Unable to resolve GITTO_ROOT: %s", err)
-	}
-}
-
 // The repo will be at {Root}/{Id}/{Name}.git
 type GitRepo struct {
 	Root   string `json:"-"`
@@ -57,7 +43,7 @@ func (repo *GitRepo) InitGitURL(r *http.Request) {
 }
 
 func GetRepo(id string) *GitRepo {
-	path := filepath.Join(GIT_ROOT, id)
+	path := filepath.Join(config.Root, id)
 
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
@@ -73,7 +59,7 @@ func GetRepo(id string) *GitRepo {
 	name = strings.Split(name, ".")[0]
 
 	return &GitRepo{
-		Root: GIT_ROOT,
+		Root: config.Root,
 		Id:   id,
 		Name: name,
 	}
@@ -108,7 +94,7 @@ func NewRepo(name string) (GitRepo, error) {
 	}
 
 	repo := GitRepo{
-		Root: GIT_ROOT,
+		Root: config.Root,
 		Id:   id,
 		Name: name,
 	}

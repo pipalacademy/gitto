@@ -10,9 +10,37 @@ import (
 	"net/http"
 	"net/http/cgi"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
+
+type Config struct {
+	Root  string
+	Token string
+}
+
+// Loads the config from the env
+func (config *Config) load() {
+	root, ok := os.LookupEnv("GITTO_ROOT")
+	if !ok {
+		root = "git"
+	}
+
+	root, err := filepath.Abs(root)
+	if err != nil {
+		log.Fatalf("Unable to resolve GITTO_ROOT: %s", err)
+	}
+	config.Root = root
+
+	token, ok := os.LookupEnv("GITTO_API_TOKEN")
+	if !ok {
+		log.Fatalf("Please specify env variable GITTO_API_TOKEN")
+	}
+	config.Token = token
+}
+
+var config Config
 
 type NewRepoRequest struct {
 	Name string `json:"name"`
@@ -28,6 +56,8 @@ type WebhookRequest struct {
 }
 
 func Serve() {
+	config.load()
+
 	http.HandleFunc("/api/", handleAPI)
 	http.HandleFunc("/", gitHttpBackend)
 
@@ -35,11 +65,38 @@ func Serve() {
 	http.ListenAndServe(":8080", nil)
 }
 
+func getAuthToken(r *http.Request) string {
+	header := r.Header.Get("Authorization")
+	if !strings.HasPrefix(strings.ToLower(header), "bearer ") {
+		log.Println("header no bearer")
+		return ""
+	}
+
+	parts := strings.SplitN(header, " ", 2)
+
+	if len(parts) == 2 {
+		return parts[1]
+	} else {
+		return ""
+	}
+}
+
 var REGEX_REPO = regexp.MustCompile("^/api/repos/([0-9a-f]+)$")
 var REGEX_HOOK = regexp.MustCompile("^/api/repos/([0-9a-f]+)/hook$")
 
 func handleAPI(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	token := getAuthToken(r)
+
+	if token == "" {
+		w.WriteHeader(401)
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		return
+	} else if token != config.Token {
+		w.WriteHeader(403)
+		return
+	}
 
 	if path == "/api/repos" {
 		apiCreateRepo(w, r)
@@ -138,7 +195,7 @@ func gitHttpBackend(w http.ResponseWriter, r *http.Request) {
 		Path: "/usr/bin/git",
 		Args: []string{"http-backend"},
 		Env: []string{
-			"GIT_PROJECT_ROOT=" + GIT_ROOT,
+			"GIT_PROJECT_ROOT=" + config.Root,
 			"GIT_HTTP_EXPORT_ALL=",
 			"REMOTE_USER=git",
 		},

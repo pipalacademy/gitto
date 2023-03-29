@@ -30,6 +30,7 @@ func Serve() {
     http.ListenAndServe(":8080", nil)
 }
 
+var REGEX_REPO = regexp.MustCompile("^/api/repos/([0-9a-f]+)$")
 var REGEX_HOOK = regexp.MustCompile("^/api/repos/([0-9a-f]+)/hook$")
 
 func handleAPI(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,13 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    matches := REGEX_HOOK.FindStringSubmatch(path)
+    matches := REGEX_REPO.FindStringSubmatch(path)
+    if matches != nil {
+        apiRepo(w, r, matches[1])
+        return
+    }
+
+    matches = REGEX_HOOK.FindStringSubmatch(path)
     if matches != nil {
         apiRepoHook(w, r, matches[1])
         return
@@ -67,6 +74,19 @@ func apiCreateRepo(w http.ResponseWriter, r *http.Request) {
     repo, err := NewRepo(req.Name)
     if err != nil {
         http.Error(w, "Failed to create repo", 500)
+    }
+    repo.InitGitURL(r)
+
+    body, _ := json.Marshal(repo)
+    w.Write(body)
+}
+
+func apiRepo(w http.ResponseWriter, r *http.Request, repo_id string) {
+    repo := GetRepo(repo_id)
+
+    if repo == nil {
+        w.WriteHeader(404)
+        return
     }
     repo.InitGitURL(r)
 

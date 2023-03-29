@@ -115,6 +115,7 @@ func gitHttpBackend(w http.ResponseWriter, r *http.Request) {
         Env: []string {
             "GIT_PROJECT_ROOT=" + GIT_ROOT,
             "GIT_HTTP_EXPORT_ALL=",
+            "REMOTE_USER=git",
         },
     }
     handler.ServeHTTP(w, r)

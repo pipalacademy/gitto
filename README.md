@@ -14,10 +14,11 @@ Gitto also supports webhook per repository. The webhook is triggered on push eve
 Set the root directory for repos.
 
 ```
-export GITTO_ROOT=/var/www/git
+export GITTO_ROOT=/var/git
+export GITTO_API_TOKEN=4CKzyyU46Bvh0QDonhaKFWULtrGBKh3F
 ```
 
-It defaults to `git` when not specified.
+The `GITTO_ROOT` defaults to `git` when not specified.
 
 **Build**
 
@@ -51,7 +52,6 @@ POST /api/repos
 {
     "id": "abcd12345678",
     "name": "rajdhani",
-    "repo_name": "abcd12345678/rajdhani",
     "git_url": "https://example.com/abcd12345678/rajdhani.git",
 }
 ```
@@ -64,7 +64,6 @@ GET /api/repos/abcd12345678
 {
     "id": "abcd12345678",
     "name": "rajdhani",
-    "repo_name": "abcd12345678/rajdhani",
     "git_url": "https://example.com/abcd12345678/rajdhani.git",
 }
 ```

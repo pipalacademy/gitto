@@ -61,8 +61,8 @@ func Serve() {
 	http.HandleFunc("/api/", handleAPI)
 	http.HandleFunc("/", gitHttpBackend)
 
-	fmt.Println("http://localhost:8080/")
-	http.ListenAndServe(":8080", nil)
+	fmt.Println("http://localhost:7878/")
+	log.Fatal(http.ListenAndServe(":7878", nil))
 }
 
 func getAuthToken(r *http.Request) string {

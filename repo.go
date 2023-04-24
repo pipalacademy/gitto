@@ -35,7 +35,7 @@ func (repo *GitRepo) InitGitURL(r *http.Request) {
 	host := r.Host
 
 	// Hack to make it work for localhost
-	if strings.HasPrefix(host, "localhost") {
+	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "git.local.pipal.in") {
 		scheme = "http"
 	}
 

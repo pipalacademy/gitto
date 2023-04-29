@@ -12,12 +12,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
 	Root  string
 	Token string
+	Port  int
 }
 
 // Loads the config from the env
@@ -38,6 +40,16 @@ func (config *Config) load() {
 		log.Fatalf("Please specify env variable GITTO_API_TOKEN")
 	}
 	config.Token = token
+
+	portStr, ok := os.LookupEnv("GITTO_PORT")
+	if !ok {
+		portStr = "7878"
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatalf("GITTO_PORT must be an integer (Got '%s')", portStr)
+	}
+	config.Port = port
 }
 
 var config Config
@@ -61,8 +73,8 @@ func Serve() {
 	http.HandleFunc("/api/", handleAPI)
 	http.HandleFunc("/", gitHttpBackend)
 
-	fmt.Println("http://localhost:7878/")
-	log.Fatal(http.ListenAndServe(":7878", nil))
+	fmt.Printf("http://localhost:%d/\n", config.Port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Port), nil))
 }
 
 func getAuthToken(r *http.Request) string {
